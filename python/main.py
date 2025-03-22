@@ -19,6 +19,7 @@ from tkinter import ttk, filedialog, messagebox
 from data_acquisition import DataAcquisition
 from visualization import DataVisualizer
 from data_storage import DataStorage
+from mock_data import MockDataGenerator
 
 class QuickDeckApp:
     """Main application class for QuickDeck testing"""
@@ -33,6 +34,12 @@ class QuickDeckApp:
         self.data_acquisition = DataAcquisition(
             strain_data_callback=self.on_strain_data,
             motion_data_callback=self.on_motion_data
+        )
+        
+        # Create mock data generator
+        self.mock_data = MockDataGenerator(
+            strain_callback=self.on_strain_data,
+            motion_callback=self.on_motion_data
         )
         
         self.visualizer = DataVisualizer()
@@ -61,6 +68,15 @@ class QuickDeckApp:
         # Create control panel on the left
         control_frame = ttk.LabelFrame(main_frame, text="Control Panel", padding=10)
         control_frame.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
+        
+        # Simulation toggle
+        sim_frame = ttk.Frame(control_frame)
+        sim_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        self.simulation_var = tk.BooleanVar(value=True)  # Default to simulation mode
+        simulation_check = ttk.Checkbutton(sim_frame, text="Simulation Mode (No Hardware Required)", 
+                                         variable=self.simulation_var)
+        simulation_check.pack(fill=tk.X, padx=5, pady=5)
         
         # Connection section
         conn_frame = ttk.LabelFrame(control_frame, text="Connection", padding=10)
@@ -110,6 +126,18 @@ class QuickDeckApp:
         # Calibration button
         self.calibrate_btn = ttk.Button(test_frame, text="Calibrate Sensors", command=self.calibrate_sensors)
         self.calibrate_btn.grid(row=2, column=0, columnspan=2, pady=5)
+        
+        # Simulation load control (initially hidden)
+        sim_btn_frame = ttk.Frame(test_frame)
+        sim_btn_frame.grid(row=3, column=0, columnspan=2, pady=5)
+        
+        inc_load_btn = ttk.Button(sim_btn_frame, text="Increase Load", 
+                                 command=self.increase_simulated_load)
+        inc_load_btn.pack(side=tk.LEFT, padx=5)
+        
+        dec_load_btn = ttk.Button(sim_btn_frame, text="Decrease Load", 
+                                 command=self.decrease_simulated_load)
+        dec_load_btn.pack(side=tk.LEFT, padx=5)
         
         # Status indicators
         status_frame = ttk.LabelFrame(control_frame, text="Status", padding=10)
@@ -197,6 +225,10 @@ class QuickDeckApp:
     
     def connect_strain(self):
         """Connect to the strain Arduino"""
+        if self.simulation_var.get():
+            messagebox.showinfo("Simulation Mode", "You are in simulation mode. No hardware connection needed.")
+            return
+            
         if self.strain_connected:
             # Already connected, so disconnect
             self.data_acquisition.disconnect()
@@ -231,6 +263,10 @@ class QuickDeckApp:
     
     def connect_motion(self):
         """Connect to the motion Arduino"""
+        if self.simulation_var.get():
+            messagebox.showinfo("Simulation Mode", "You are in simulation mode. No hardware connection needed.")
+            return
+            
         if self.motion_connected:
             # Already connected, so disconnect
             self.data_acquisition.disconnect()
@@ -265,46 +301,81 @@ class QuickDeckApp:
     
     def start_test(self):
         """Start data acquisition and test"""
-        if not (self.strain_connected and self.motion_connected):
-            messagebox.showerror("Error", "Both Arduinos must be connected before starting test")
-            return
-        
-        # Get test name
-        test_name = self.test_name_var.get()
-        if not test_name:
-            test_name = f"test_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            self.test_name_var.set(test_name)
-        
-        # Create test directory
-        self.data_storage.create_test_directory(test_name)
-        
-        # Start data acquisition
-        if self.data_acquisition.start_acquisition(test_name):
-            self.acquisition_running = True
-            self.test_status_var.set("Running")
+        if self.simulation_var.get():
+            # Use mock data generator
+            test_name = self.test_name_var.get()
+            if not test_name:
+                test_name = f"test_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                self.test_name_var.set(test_name)
             
-            # Update button states
-            self.start_btn.configure(state=tk.DISABLED)
-            self.stop_btn.configure(state=tk.NORMAL)
+            # Create test directory
+            self.data_storage.create_test_directory(test_name)
             
-            # Reset visualizer
-            self.visualizer.clear_data()
-            
-            # Update status
-            self.status_bar.configure(text=f"Test '{test_name}' started")
-            
-            # Store current test name
-            self.current_test = test_name
+            # Start mock data generation
+            if self.mock_data.start():
+                self.acquisition_running = True
+                self.test_status_var.set("Running (Simulation)")
+                
+                # Update button states
+                self.start_btn.configure(state=tk.DISABLED)
+                self.stop_btn.configure(state=tk.NORMAL)
+                
+                # Reset visualizer
+                self.visualizer.clear_data()
+                
+                # Update status
+                self.status_bar.configure(text=f"Simulated test '{test_name}' started")
+                
+                # Store current test name
+                self.current_test = test_name
+            else:
+                messagebox.showerror("Error", "Failed to start mock data generation")
         else:
-            messagebox.showerror("Error", "Failed to start data acquisition")
+            # Original code for hardware testing
+            if not (self.strain_connected and self.motion_connected):
+                messagebox.showerror("Error", "Both Arduinos must be connected before starting test")
+                return
+            
+            # Get test name
+            test_name = self.test_name_var.get()
+            if not test_name:
+                test_name = f"test_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                self.test_name_var.set(test_name)
+            
+            # Create test directory
+            self.data_storage.create_test_directory(test_name)
+            
+            # Start data acquisition
+            if self.data_acquisition.start_acquisition(test_name):
+                self.acquisition_running = True
+                self.test_status_var.set("Running")
+                
+                # Update button states
+                self.start_btn.configure(state=tk.DISABLED)
+                self.stop_btn.configure(state=tk.NORMAL)
+                
+                # Reset visualizer
+                self.visualizer.clear_data()
+                
+                # Update status
+                self.status_bar.configure(text=f"Test '{test_name}' started")
+                
+                # Store current test name
+                self.current_test = test_name
+            else:
+                messagebox.showerror("Error", "Failed to start data acquisition")
     
     def stop_test(self):
         """Stop data acquisition and finalize test"""
         if not self.acquisition_running:
             return
         
-        # Stop data acquisition
-        self.data_acquisition.stop_acquisition()
+        # Stop data acquisition based on mode
+        if self.simulation_var.get():
+            self.mock_data.stop()
+        else:
+            self.data_acquisition.stop_acquisition()
+            
         self.acquisition_running = False
         
         # Finalize test in data storage
@@ -329,8 +400,34 @@ class QuickDeckApp:
         if messagebox.askyesno("Test Completed", f"Test '{self.current_test}' has completed. View results?"):
             self.view_test_results(self.current_test)
     
+    def increase_simulated_load(self):
+        """Increase the simulated load"""
+        if self.acquisition_running and self.simulation_var.get():
+            self.mock_data.increase_load()
+            self.status_bar.configure(text="Simulated load increased")
+        else:
+            if not self.simulation_var.get():
+                messagebox.showinfo("Hardware Mode", "Load control is only available in simulation mode")
+            else:
+                messagebox.showinfo("Not Running", "Start a test first to control the load")
+    
+    def decrease_simulated_load(self):
+        """Decrease the simulated load"""
+        if self.acquisition_running and self.simulation_var.get():
+            self.mock_data.decrease_load()
+            self.status_bar.configure(text="Simulated load decreased")
+        else:
+            if not self.simulation_var.get():
+                messagebox.showinfo("Hardware Mode", "Load control is only available in simulation mode")
+            else:
+                messagebox.showinfo("Not Running", "Start a test first to control the load")
+    
     def calibrate_sensors(self):
         """Calibrate sensors on both Arduinos"""
+        if self.simulation_var.get():
+            messagebox.showinfo("Simulation Mode", "Calibration not needed in simulation mode")
+            return
+            
         if not (self.strain_connected and self.motion_connected):
             messagebox.showerror("Error", "Both Arduinos must be connected before calibration")
             return
@@ -485,7 +582,12 @@ class QuickDeckApp:
             # Ask if user wants to open the file
             if messagebox.askyesno("Open File", "Do you want to open the exported file?"):
                 # Open the file with default application
-                os.startfile(excel_path) if sys.platform == 'win32' else os.system(f"open {excel_path}")
+                if sys.platform == 'win32':
+                    os.startfile(excel_path)
+                elif sys.platform == 'darwin':  # macOS
+                    os.system(f"open '{excel_path}'")
+                else:  # Linux
+                    os.system(f"xdg-open '{excel_path}'")
                 
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to export data: {str(e)}")
