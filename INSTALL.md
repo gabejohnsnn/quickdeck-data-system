@@ -2,6 +2,47 @@
 
 This guide provides step-by-step instructions for setting up the QuickDeck testing system.
 
+## Python Version Compatibility
+
+- **Recommended**: Python 3.7 to 3.11
+- **Python 3.12-3.13**: Works with the included patch file (see [Using with Newer Python Versions](#using-with-newer-python-versions))
+- **Minimum**: Python 3.7
+
+## Installation Options
+
+### Option 1: Simple Installation (Simulation Mode Only)
+
+If you just want to test the system using simulation mode without physical hardware:
+
+1. Clone this repository:
+   ```
+   git clone https://github.com/gabejohnsnn/quickdeck-data-system.git
+   cd quickdeck-data-system
+   ```
+
+2. Create a virtual environment (recommended):
+   ```
+   python -m venv venv
+   ```
+
+3. Activate the virtual environment:
+   - Windows: `venv\Scripts\activate`
+   - macOS/Linux: `source venv/bin/activate`
+
+4. Install required Python packages:
+   ```
+   pip install -r requirements.txt
+   ```
+
+5. Run the application:
+   ```
+   python run.py
+   ```
+
+### Option 2: Full Installation (With Hardware Support)
+
+Follow these steps if you plan to connect to physical Arduino hardware:
+
 ## Prerequisites
 
 - Arduino IDE (version 1.8.x or later)
@@ -100,6 +141,26 @@ Install the following libraries through the Arduino Library Manager:
 
 4. Use the GUI to connect to both Arduinos, calibrate the sensors, and start data acquisition.
 
+## Using with Newer Python Versions
+
+If you're using Python 3.12 or newer (such as Python 3.13) and encounter compatibility errors:
+
+1. Run the application using our patch file instead:
+   ```
+   python patch.py
+   ```
+
+2. The patch file adds compatibility fixes for newer Python versions that may have removed features used by some dependencies.
+
+3. If you still encounter issues, try using Python 3.10, which is known to work well with all dependencies:
+   ```
+   # Create a Python 3.10 virtual environment
+   python3.10 -m venv venv_py310
+   source venv_py310/bin/activate  # On Windows: venv_py310\Scripts\activate
+   pip install -r requirements.txt
+   python run.py
+   ```
+
 ## Troubleshooting
 
 - **Serial Port Not Found**: Ensure both Arduinos are properly connected and that the correct drivers are installed.
@@ -109,5 +170,7 @@ Install the following libraries through the Arduino Library Manager:
 - **Strain Gauge Not Working**: Verify connections between the strain gauge, HX711 module, and Arduino. Check that the strain gauge is properly attached to the test specimen.
 
 - **Motion Sensor Not Working**: Check I2C connections and addresses. Ensure that the MPU6050 sensors are properly powered.
+
+- **Python Compatibility Issues**: Use the patch file or switch to Python 3.10 for maximum compatibility.
 
 For more detailed information, refer to the technical documentation in the instrumentation plan.
